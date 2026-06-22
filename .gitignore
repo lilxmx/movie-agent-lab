@@ -1,0 +1,45 @@
+# ---- 敏感文件 ----
+**/.env
+**/.env.local
+**/.env.production
+*.pem
+*.key
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ---- Node ----
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+
+# ---- IDE / OS ----
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ---- Claude ----
+.claude/
+
+# ---- Deploy 临时产物 ----
+*.tar.gz
+movie-agent-lab-deploy-*.tar.gz
+
+# ---- 数据库备份 ----
+*.sql
+*.dump

@@ -355,21 +355,52 @@ curl 'http://127.0.0.1:8000/api/v1/movies?limit=3'
 
 ### 更新代码后重新部署
 
+**标准三步**：
+
 ```bash
-cd /home/ubuntu/movie-agent-lab
-git pull
-
+ssh ubuntu@43.138.158.143
+cd /home/ubuntu/movie-agent-lab && git pull
 cd infra
+```
 
-# 仅后端有改动
-docker compose -f docker-compose.prod.yml up -d --build backend
+然后按**改动范围**选下面一条命令：
 
-# 仅前端有改动（必须 --no-cache 让 .env 重新注入）
-docker compose -f docker-compose.prod.yml build --no-cache frontend
-docker compose -f docker-compose.prod.yml up -d frontend
+| 改动范围 | 命令 |
+|---|---|
+| 只改后端 Python | `docker compose -f docker-compose.prod.yml up -d --build backend` |
+| 只改前端 Vue/TS | `docker compose -f docker-compose.prod.yml build --no-cache frontend && docker compose -f docker-compose.prod.yml up -d frontend` |
+| 前后端都改了 | `docker compose -f docker-compose.prod.yml up -d --build` |
+| 改了 alembic 迁移 | 上面命令跑完后再加：`docker compose -f docker-compose.prod.yml exec backend alembic upgrade head` |
+| 只改了 `.env` | 后端：`docker compose -f docker-compose.prod.yml restart backend`；前端必须 `--no-cache` 重 build |
 
-# 有新的数据库迁移
-docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+### 几个易踩的坑
+
+1. **前端必须 `--no-cache`**：`VITE_*` 是构建时静态注入到 JS 文件的，Docker 缓存层会复用旧 JS。少了这个参数，浏览器看到的还是旧版。
+2. **后端不需要 `--no-cache`**：Python 代码 COPY 进容器，正常 build 就会带上新代码。
+3. **改完前端要硬刷新浏览器**：F12 → Network 勾 Disable cache，或 `Cmd+Shift+R` / `Ctrl+Shift+F5`，否则浏览器用的还是缓存的旧 JS。
+4. **改 alembic 迁移别忘 `upgrade head`**：否则新代码访问新表会 500。
+5. **`.env` 不会被 git 覆盖**：`.gitignore` 已排除，服务器上的 `backend/.env` 和 `frontend/.env` 是手动 scp 上去的，`git pull` 不会动它们。
+
+### 出问题怎么排查
+
+```bash
+# 实时看日志
+docker compose -f docker-compose.prod.yml logs backend --tail=50 -f
+docker compose -f docker-compose.prod.yml logs frontend --tail=50 -f
+
+# 看容器健康状态
+docker compose -f docker-compose.prod.yml ps
+
+# 健康检查
+curl http://127.0.0.1:8000/health
+```
+
+### 回滚到上一个版本
+
+```bash
+git log --oneline -5                # 找回滚目标
+git reset --hard <commit_hash>
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 ### 查看日志

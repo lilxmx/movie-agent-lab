@@ -24,6 +24,7 @@ const newComment = ref("");
 // 答题弹窗状态
 const quizVisible = ref(false);
 const quizQuestion = ref<QuizQuestion | null>(null);
+const quizLoading = ref(false);
 const pendingRating = ref(0);
 
 function genres(): string[] {
@@ -47,21 +48,29 @@ async function rate(value: number) {
 
   // 检查是否有评分资格
   const qualified = await api.ratingQualified(movieId).catch(() => false);
-  if (!qualified) {
-    // 拉取一道题，弹出答题窗口
-    const questions = await api.quizQuestions(movieId, 1).catch(() => [] as QuizQuestion[]);
-    if (!questions.length) {
-      // 该电影没有题目，直接允许评分
-      await doRate(movieId, value);
-      return;
-    }
-    pendingRating.value = value;
-    quizQuestion.value = questions[0];
-    quizVisible.value = true;
+  if (qualified) {
+    await doRate(movieId, value);
     return;
   }
 
-  await doRate(movieId, value);
+  // 先弹窗显示"出题中"，再异步拉题
+  pendingRating.value = value;
+  quizQuestion.value = null;
+  quizLoading.value = true;
+  quizVisible.value = true;
+
+  try {
+    const questions = await api.quizQuestions(movieId, 1).catch(() => [] as QuizQuestion[]);
+    if (!questions.length) {
+      // 该电影没有题目，直接允许评分
+      quizVisible.value = false;
+      await doRate(movieId, value);
+      return;
+    }
+    quizQuestion.value = questions[0];
+  } finally {
+    quizLoading.value = false;
+  }
 }
 
 async function doRate(movieId: number, value: number) {
@@ -81,6 +90,7 @@ async function onQuizPass() {
 function onQuizClose() {
   quizVisible.value = false;
   quizQuestion.value = null;
+  quizLoading.value = false;
   pendingRating.value = 0;
 }
 
@@ -188,9 +198,10 @@ watch(
 
   <!-- 答题资格弹窗 -->
   <QuizModal
-    v-if="quizVisible && quizQuestion && movie"
+    v-if="quizVisible && movie"
     :movie-id="movie.movie_id"
     :question="quizQuestion"
+    :loading="quizLoading"
     @pass="onQuizPass"
     @close="onQuizClose"
   />

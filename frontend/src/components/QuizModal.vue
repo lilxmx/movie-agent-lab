@@ -3,7 +3,8 @@ import type { QuizQuestion } from "@/types";
 
 const props = defineProps<{
   movieId: number;
-  question: QuizQuestion;
+  question: QuizQuestion | null;
+  loading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -27,7 +28,7 @@ const result = ref<"correct" | "wrong" | null>(null);
 const loading = ref(false);
 
 async function choose(answer: number) {
-  if (result.value !== null || loading.value) return;
+  if (!props.question || result.value !== null || loading.value) return;
   selected.value = answer;
   loading.value = true;
   try {
@@ -50,34 +51,42 @@ async function choose(answer: number) {
         <button class="close-btn" @click="emit('close')">✕</button>
       </div>
 
-      <p class="question">{{ question.question_info }}</p>
-
-      <div class="options">
-        <button
-          v-for="opt in OPTIONS"
-          :key="opt.key"
-          class="opt-btn"
-          :class="{
-            selected: selected === opt.key && result === null,
-            correct: selected === opt.key && result === 'correct',
-            wrong: selected === opt.key && result === 'wrong',
-            disabled: result !== null && selected !== opt.key,
-          }"
-          :disabled="result !== null || loading"
-          @click="choose(opt.key)"
-        >
-          <span class="opt-label">{{ opt.label }}</span>
-          <span class="opt-text">{{ question[opt.textKey] }}</span>
-        </button>
+      <div v-if="loading || !question" class="loading-box">
+        <div class="spinner"></div>
+        <div class="loading-text">AI 正在为这部电影生成题目…</div>
+        <div class="loading-hint">题目考察你是否真的看过此片，通常需要几秒</div>
       </div>
 
-      <div v-if="result === 'correct'" class="feedback correct-msg">
-        ✓ 回答正确，获得评分资格！
-      </div>
-      <div v-else-if="result === 'wrong'" class="feedback wrong-msg">
-        ✗ 回答有误，本次未获得评分资格。
-        <button class="btn" style="margin-top: 10px" @click="emit('close')">关闭</button>
-      </div>
+      <template v-else>
+        <p class="question">{{ question.question_info }}</p>
+
+        <div class="options">
+          <button
+            v-for="opt in OPTIONS"
+            :key="opt.key"
+            class="opt-btn"
+            :class="{
+              selected: selected === opt.key && result === null,
+              correct: selected === opt.key && result === 'correct',
+              wrong: selected === opt.key && result === 'wrong',
+              disabled: result !== null && selected !== opt.key,
+            }"
+            :disabled="result !== null"
+            @click="choose(opt.key)"
+          >
+            <span class="opt-label">{{ opt.label }}</span>
+            <span class="opt-text">{{ question[opt.textKey] }}</span>
+          </button>
+        </div>
+
+        <div v-if="result === 'correct'" class="feedback correct-msg">
+          ✓ 回答正确，获得评分资格！
+        </div>
+        <div v-else-if="result === 'wrong'" class="feedback wrong-msg">
+          ✗ 回答有误，本次未获得评分资格。
+          <button class="btn" style="margin-top: 10px" @click="emit('close')">关闭</button>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -190,5 +199,31 @@ async function choose(answer: number) {
 .wrong-msg {
   background: rgba(239, 68, 68, 0.08);
   color: #ef4444;
+}
+.loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 0;
+}
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+.loading-text {
+  font-size: 14px;
+  color: var(--text);
+}
+.loading-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

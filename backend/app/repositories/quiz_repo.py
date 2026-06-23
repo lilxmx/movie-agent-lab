@@ -17,6 +17,31 @@ def movie_questions(db: Session, movie_id: int, num: int) -> list[Question]:
     )
 
 
+def save_question(
+    db: Session,
+    movie_id: int,
+    question_info: str,
+    option_a: str,
+    option_b: str,
+    option_c: str,
+    option_d: str,
+    answer: int,
+) -> Question:
+    q = Question(
+        to_id=movie_id,
+        question_info=question_info,
+        option_a=option_a,
+        option_b=option_b,
+        option_c=option_c,
+        option_d=option_d,
+        answer=answer,
+    )
+    db.add(q)
+    db.commit()
+    db.refresh(q)
+    return q
+
+
 def correct_answer_count(db: Session, user_id: int, movie_id: int) -> int:
     """用户在该电影下答对的题数（questionRank.answer == question.answer）。"""
     return db.scalar(
